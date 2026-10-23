@@ -11,3 +11,15 @@ bin/
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Node.js dependencies
+backend/node_modules/
+
+# Uploaded test documents
+/uploads/*
+
+# Keep the uploads directory available
+!/uploads/.gitkeep
+
+# Compiled executable
+/main.exe

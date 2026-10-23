@@ -1,0 +1,18 @@
+
+# Node.js dependencies
+backend/node_modules/
+
+# Compiled C++ files
+/main.exe
+*.o
+*.obj
+
+# Uploaded documents
+/uploads/*
+
+# Keep uploads directory in Git
+!/uploads/.gitkeep
+
+# Operating system files
+.DS_Store
+Thumbs.db
