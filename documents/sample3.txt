@@ -1,0 +1,1 @@
+Operating systems manage memory and processes.

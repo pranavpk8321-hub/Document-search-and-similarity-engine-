@@ -1,0 +1,13 @@
+
+# Compiled C++ files
+*.exe
+*.o
+*.obj
+
+# Build folders
+build/
+bin/
+
+# Operating system files
+.DS_Store
+Thumbs.db
