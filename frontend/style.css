@@ -813,3 +813,163 @@ section[id] {
     outline-offset: 4px;
     border-radius: 3px;
 }
+
+
+/* ------------------------------------------
+   PERFORMANCE BENCHMARK GRAPHS
+------------------------------------------ */
+
+.benchmark-graphs {
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 1px solid #e3e8df;
+}
+
+.benchmark-charts {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 22px;
+    margin-top: 20px;
+}
+
+.benchmark-chart-card {
+    background: #fbfcf8;
+    border: 1px solid #e3e8df;
+    border-radius: 14px;
+    padding: 22px;
+    min-width: 0;
+}
+
+.benchmark-chart-card h4 {
+    color: #244d3b;
+    font-size: 17px;
+    margin: 0 0 6px;
+}
+
+.benchmark-chart-description {
+    color: #6d786f;
+    font-size: 13px;
+    margin: 0 0 24px;
+}
+
+.benchmark-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.benchmark-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: #46564b;
+}
+
+.benchmark-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.benchmark-bar-group {
+    display: grid;
+    grid-template-columns: minmax(90px, 125px) minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    margin: 18px 0;
+}
+
+.benchmark-bar-label {
+    color: #3e5045;
+    font-size: 13px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.benchmark-bar-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+}
+
+.benchmark-bar-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(65px, auto);
+    align-items: center;
+    gap: 10px;
+}
+
+.benchmark-bar-track {
+    height: 13px;
+    width: 100%;
+    background: #e9eee6;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.benchmark-bar {
+    height: 100%;
+    min-width: 0;
+    border-radius: 20px;
+    transition: width 0.5s ease;
+}
+
+.benchmark-bar-linear {
+    background: #719c78;
+}
+
+.benchmark-bar-kmp {
+    background: #34765a;
+}
+
+.benchmark-bar-boyer-moore {
+    background: #c6a66b;
+}
+
+.benchmark-bar-value {
+    color: #46564b;
+    font-size: 12px;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.benchmark-chart-note {
+    margin-top: 20px;
+    padding: 12px 14px;
+    border-radius: 9px;
+    background: #f0f4eb;
+    color: #526455;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+    .benchmark-chart-card {
+        padding: 15px;
+    }
+
+    .benchmark-bar-group {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin: 22px 0;
+    }
+
+    .benchmark-bar-label {
+        font-size: 12px;
+    }
+
+    .benchmark-bar-row {
+        grid-template-columns: minmax(0, 1fr) 82px;
+        gap: 8px;
+    }
+
+    .benchmark-bar-value {
+        font-size: 11px;
+    }
+}

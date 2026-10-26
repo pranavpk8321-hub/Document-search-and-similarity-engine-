@@ -1,16 +1,17 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Search & Similarity Engine</title>
+    <title>DocuSense | Document Search & Similarity Engine</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-
+    <!-- HEADER AND NAVIGATION -->
     <header class="topbar">
         <div class="brand">
             <div class="brand-icon">DS</div>
@@ -19,7 +20,6 @@
                 <p>Search & Similarity Engine</p>
             </div>
         </div>
-
 
         <nav class="top-nav">
             <a href="#dashboard">Dashboard</a>
@@ -30,7 +30,6 @@
             <a href="#performance">Performance</a>
         </nav>
 
-
         <div class="status">
             <span class="status-dot"></span>
             Engine Preview
@@ -38,6 +37,8 @@
     </header>
 
     <main class="container" id="dashboard">
+
+        <!-- WELCOME SECTION -->
         <section class="welcome">
             <div>
                 <p class="eyebrow">DOCUMENT INTELLIGENCE PLATFORM</p>
@@ -50,22 +51,26 @@
             <div class="welcome-icon">⌕</div>
         </section>
 
+        <!-- DASHBOARD STATISTICS -->
         <section class="stats">
             <article class="stat-card">
                 <p>Total Documents</p>
                 <h3 id="documentCount">3</h3>
                 <span>Available for analysis</span>
             </article>
+
             <article class="stat-card">
                 <p>Search Algorithms</p>
                 <h3>03</h3>
                 <span>Naive · KMP · Boyer–Moore</span>
             </article>
+
             <article class="stat-card">
                 <p>Similarity Method</p>
                 <h3>Jaccard</h3>
                 <span>Unique-word comparison</span>
             </article>
+
             <article class="stat-card">
                 <p>Project Status</p>
                 <h3 class="status-text">In Progress</h3>
@@ -73,6 +78,7 @@
             </article>
         </section>
 
+        <!-- UPLOAD DOCUMENTS -->
         <section class="panel" id="upload">
             <div class="panel-heading">
                 <div>
@@ -83,15 +89,24 @@
             </div>
 
             <div class="upload-area">
-                <input type="file" id="documentUpload" accept=".txt,text/plain" multiple>
+                <input
+                    type="file"
+                    id="documentUpload"
+                    accept=".txt,text/plain"
+                    multiple
+                >
+
                 <p>Select one or more .txt files from your computer.</p>
+
                 <button type="button" id="uploadButton">
                     Add Documents
                 </button>
+
                 <p id="uploadStatus" aria-live="polite"></p>
             </div>
         </section>
 
+        <!-- DOCUMENT LIBRARY -->
         <section class="panel" id="library">
             <div class="panel-heading">
                 <div>
@@ -99,13 +114,16 @@
                     <h2>Document Library</h2>
                     <p>View and manage the documents available for analysis.</p>
                 </div>
-                <span id="libraryCount" class="result-badge">3 documents</span>
+
+                <span id="libraryCount" class="result-badge">
+                    3 documents
+                </span>
             </div>
 
             <div id="documentList" class="document-list"></div>
         </section>
 
-
+        <!-- DOCUMENT SEARCH -->
         <section class="panel search-panel" id="documents">
             <div class="section-heading">
                 <div>
@@ -117,21 +135,35 @@
 
             <form id="searchForm" class="search-form">
                 <span class="search-icon">⌕</span>
-                <input type="text" id="searchInput" placeholder="Enter a keyword, e.g. merge, sorting..." required>
+
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Enter a keyword, e.g. merge, sorting..."
+                    required
+                >
+
                 <button type="submit">Search Documents</button>
             </form>
 
             <div class="search-options">
                 <span>Try a keyword:</span>
-                <button class="keyword-chip" data-keyword="merge">merge</button>
-                <button class="keyword-chip" data-keyword="sorting">sorting</button>
-                <button class="keyword-chip" data-keyword="operating">operating</button>
+                <button type="button" class="keyword-chip" data-keyword="merge">
+                    merge
+                </button>
+                <button type="button" class="keyword-chip" data-keyword="sorting">
+                    sorting
+                </button>
+                <button type="button" class="keyword-chip" data-keyword="operating">
+                    operating
+                </button>
             </div>
 
             <div class="results-header">
                 <h3>Search Results</h3>
                 <span id="resultCount">Ready to search</span>
             </div>
+
             <div id="searchResults" class="results-list">
                 <div class="empty-state">
                     <span>⌕</span>
@@ -140,6 +172,7 @@
             </div>
         </section>
 
+        <!-- DOCUMENT SIMILARITY -->
         <section class="panel" id="similarity">
             <div class="section-heading">
                 <div>
@@ -153,26 +186,57 @@
                 Compare documents based on the overlap between their unique words.
             </p>
 
+            <!-- Compare two selected documents -->
+            <div class="similarity-compare">
+                <h3>Compare Two Documents</h3>
+
+                <div class="search-form">
+                    <select id="similarityDocumentA" required>
+                        <option value="">Select first document</option>
+                    </select>
+
+                    <select id="similarityDocumentB" required>
+                        <option value="">Select second document</option>
+                    </select>
+
+                    <button type="button" id="compareDocumentsButton">
+                        Compare Documents
+                    </button>
+                </div>
+
+                <p id="pairSimilarityStatus" aria-live="polite">
+                    Select two documents to compare.
+                </p>
+
+                <div id="pairSimilarityResult"></div>
+            </div>
+
+            <!-- All unique document pairs -->
+            <div class="results-header">
+                <h3>All Document Comparisons</h3>
+                <span id="similarityPairCount">Not analyzed yet</span>
+            </div>
+
             <div id="similarityResults" class="similarity-grid">
-                <div class="similarity-card">
-                    <div class="pair-title">
-                        <span>sample1.txt</span>
-                        <span class="versus">VS</span>
-                        <span>sample2.txt</span>
-                    </div>
-                    <div class="similarity-value">—<small>%</small></div>
-                    <div class="progress-track">
-                        <div class="progress-fill" style="width: 0%"></div>
-                    </div>
-                    <p>Run analysis to calculate similarity.</p>
+                <div class="empty-state">
+                    <p>
+                        Click Analyze All Documents to compare every unique pair.
+                    </p>
                 </div>
             </div>
 
-            <button id="analyzeButton" class="secondary-button">
+            <button
+                type="button"
+                id="analyzeButton"
+                class="secondary-button"
+            >
                 Analyze All Documents
             </button>
+
+            <p id="similarityStatus" aria-live="polite"></p>
         </section>
 
+        <!-- PERFORMANCE ANALYSIS -->
         <section class="panel" id="performance">
             <div class="section-heading">
                 <div>
@@ -186,47 +250,95 @@
                 Compare the execution time of the three implemented search algorithms.
             </p>
 
+            <!-- Algorithm descriptions -->
             <div class="algorithm-grid">
                 <article class="algorithm-card">
                     <span class="algorithm-number">01</span>
                     <h3>Naive Search</h3>
                     <p class="complexity">Worst case: O(nm)</p>
-                    <p>Checks possible pattern positions character by character.</p>
+                    <p>
+                        Checks possible pattern positions character by character.
+                    </p>
                 </article>
+
                 <article class="algorithm-card">
                     <span class="algorithm-number">02</span>
                     <h3>KMP Search</h3>
                     <p class="complexity">Time: O(n + m)</p>
-                    <p>Uses the LPS array to avoid unnecessary comparisons.</p>
+                    <p>
+                        Uses the LPS array to avoid unnecessary comparisons.
+                    </p>
                 </article>
+
                 <article class="algorithm-card">
                     <span class="algorithm-number">03</span>
                     <h3>Boyer–Moore</h3>
                     <p class="complexity">Worst case: O(nm)</p>
-                    <p>Uses a bad-character shift to skip possible alignments.</p>
+                    <p>
+                        Uses a bad-character shift to skip possible alignments.
+                    </p>
                 </article>
             </div>
 
+            <!-- Benchmark controls -->
             <div class="benchmark-controls">
-                <button id="benchmarkButton" class="secondary-button">
+                <button
+                    type="button"
+                    id="benchmarkButton"
+                    class="secondary-button"
+                >
                     Run Performance Benchmark
                 </button>
+
                 <p id="benchmarkStatus" aria-live="polite">
                     Ready to benchmark.
                 </p>
             </div>
 
+            <!-- NEW: PERFORMANCE COMPARISON GRAPHS -->
+            <div class="benchmark-graphs">
+                <div class="results-header">
+                    <h3>Performance Comparison Graphs</h3>
+                    <span class="tag">Average Time per Search</span>
+                </div>
+
+                <p class="section-description">
+                    Compare Linear Search, KMP, and Boyer–Moore across
+                    different input sizes. Shorter bars indicate lower
+                    execution time.
+                </p>
+
+                <div id="benchmarkCharts" class="benchmark-charts">
+                    <div class="empty-state">
+                        <p>
+                            Run the benchmark to generate performance graphs.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Existing detailed benchmark results -->
+            <div class="results-header">
+                <h3>Detailed Benchmark Results</h3>
+            </div>
+
             <div id="benchmarkResults" class="results-list">
                 <div class="empty-state">
-                    <p>Run the benchmark to compare algorithm execution times.</p>
+                    <p>
+                        Run the benchmark to compare algorithm execution times.
+                    </p>
                 </div>
             </div>
         </section>
 
+        <!-- FOOTER -->
         <footer>
             <span>DocuSense</span>
-            <span>Document Search & Similarity Analysis Engine · DAA Project</span>
+            <span>
+                Document Search & Similarity Analysis Engine · DAA Project
+            </span>
         </footer>
+
     </main>
 
     <script src="script.js"></script>
