@@ -166,9 +166,9 @@ bool boyerMooreSearch(string text, string pattern)
 }
 
 // Benchmark search algorithms
-long long benchmarkSearch(int algorithm, string text, string pattern)
+long long benchmarkSearch(int algorithm, string text,
+                          string pattern, int repetitions = 10000)
 {
-    const int repetitions = 10000;
     bool result = false;
 
     auto start = chrono::high_resolution_clock::now();
@@ -256,6 +256,7 @@ string readDocument(string filename)
         content += line + " ";
 
     file.close();
+
     return content;
 }
 
@@ -320,43 +321,81 @@ int main(int argc, char *argv[])
     // Add uploaded documents automatically
     addUploadedDocuments(filenames);
 
-    // API mode: benchmark the three search algorithms
+    // API mode: benchmark algorithms on different input sizes
     if (argc >= 3 && string(argv[1]) == "--benchmark")
     {
-        string keyword = toLowerCase(argv[2]);
+        string keyword = "xyznonexistent987";
 
-        string benchmarkText = "";
+        string originalText = "";
 
         for (const string &filename : filenames)
         {
-            benchmarkText += readDocument(filename) + " ";
+            originalText += readDocument(filename) + " ";
         }
 
-        if (benchmarkText.empty())
+        if (originalText.empty())
         {
             cerr << "No document content available for benchmarking.";
             return 1;
         }
 
-        long long linearTime =
-            benchmarkSearch(1, benchmarkText, keyword);
+        // Small, medium and large synthetic input sizes
+        vector<int> inputSizes = {1000, 10000, 100000};
+        vector<int> repetitions = {10000, 1000, 100};
 
-        long long kmpTime =
-            benchmarkSearch(2, benchmarkText, keyword);
+        vector<string> sizeNames = {
+            "small", "medium", "large"};
 
-        long long boyerMooreTime =
-            benchmarkSearch(3, benchmarkText, keyword);
+        cout << "{";
+        cout << "\"keyword\":\"" << jsonEscape(keyword) << "\",";
+        cout << "\"unit\":\"microseconds\",";
+        cout << "\"results\":[";
 
-        cout << "{"
-             << "\"linearSearch\":" << linearTime << ","
-             << "\"kmpSearch\":" << kmpTime << ","
-             << "\"boyerMooreSearch\":" << boyerMooreTime
-             << "}" << endl;
+        for (int i = 0; i < (int)inputSizes.size(); i++)
+        {
+            string benchmarkText = "";
+
+            // Repeat existing document content to reach target size
+            while (benchmarkText.size() < (size_t)inputSizes[i])
+            {
+                benchmarkText += originalText;
+            }
+
+            benchmarkText.resize(inputSizes[i]);
+
+            int reps = repetitions[i];
+
+            long long linearTime =
+                benchmarkSearch(1, benchmarkText, keyword, reps);
+
+            long long kmpTime =
+                benchmarkSearch(2, benchmarkText, keyword, reps);
+
+            long long boyerMooreTime =
+                benchmarkSearch(3, benchmarkText, keyword, reps);
+
+            if (i > 0)
+                cout << ",";
+
+            cout << "{"
+                 << "\"size\":\"" << sizeNames[i] << "\","
+                 << "\"characters\":" << inputSizes[i] << ","
+                 << "\"repetitions\":" << reps << ","
+                 << "\"linearSearch\":" << linearTime << ","
+                 << "\"kmpSearch\":" << kmpTime << ","
+                 << "\"boyerMooreSearch\":" << boyerMooreTime << ","
+                 << "\"linearAverage\":" << (double)linearTime / reps << ","
+                 << "\"kmpAverage\":" << (double)kmpTime / reps << ","
+                 << "\"boyerMooreAverage\":" << (double)boyerMooreTime / reps
+                 << "}";
+        }
+
+        cout << "]}" << endl;
 
         return 0;
     }
 
-    // API mode: used by the Node.js backend
+    // API mode: search documents for the Node.js backend
     if (argc >= 3 && string(argv[1]) == "--search")
     {
         string keyword = toLowerCase(argv[2]);
@@ -396,9 +435,8 @@ int main(int argc, char *argv[])
             }
         }
 
-       
-
         cout << "]" << endl;
+
         return 0;
     }
 
@@ -442,6 +480,7 @@ int main(int argc, char *argv[])
         {
             cout << "Found in: "
                  << filename << endl;
+
             foundAny = true;
         }
     }

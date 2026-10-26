@@ -144,6 +144,7 @@ app.get("/api/search", (req, res) => {
 });
 
 // Benchmark all three C++ search algorithms
+
 app.get("/api/benchmark", (req, res) => {
     const keyword = req.query.keyword;
 
@@ -158,7 +159,7 @@ app.get("/api/benchmark", (req, res) => {
         ["--benchmark", keyword.trim()],
         {
             cwd: projectRoot,
-            timeout: 15000,
+            timeout: 30000,
             maxBuffer: 1024 * 1024
         },
         (error, stdout, stderr) => {
@@ -174,43 +175,38 @@ app.get("/api/benchmark", (req, res) => {
             }
 
             try {
-                const timings = JSON.parse(stdout);
+                const benchmarkData = JSON.parse(stdout);
 
-                const validTimings = [
-                    timings.linearSearch,
-                    timings.kmpSearch,
-                    timings.boyerMooreSearch
-                ].every(value =>
-                    typeof value === "number" &&
-                    Number.isFinite(value) &&
-                    value >= 0
-                );
-
-                if (!validTimings) {
-                    throw new Error("Invalid timing values.");
+                if (
+                    !Array.isArray(benchmarkData.results) ||
+                    benchmarkData.results.length !== 3
+                ) {
+                    throw new Error("Invalid benchmark results.");
                 }
 
-                return res.json({
-                    keyword: keyword.trim(),
-                    unit: "microseconds",
-                    repetitions: 10000,
-                    results: [
-                        {
-                            algorithm: "Naive Search",
-                            time: timings.linearSearch
-                        },
-                        {
-                            algorithm: "KMP Search",
-                            time: timings.kmpSearch
-                        },
-                        {
-                            algorithm: "Boyer-Moore",
-                            time: timings.boyerMooreSearch
-                        }
-                    ]
-                });
+                const validResults = benchmarkData.results.every(item =>
+                    ["small", "medium", "large"].includes(item.size) &&
+                    Number.isFinite(item.characters) &&
+                    Number.isFinite(item.repetitions) &&
+                    Number.isFinite(item.linearSearch) &&
+                    Number.isFinite(item.kmpSearch) &&
+                    Number.isFinite(item.boyerMooreSearch) &&
+                    Number.isFinite(item.linearAverage) &&
+                    Number.isFinite(item.kmpAverage) &&
+                    Number.isFinite(item.boyerMooreAverage)
+                );
+
+                if (!validResults) {
+                    throw new Error("Invalid benchmark timing values.");
+                }
+
+                return res.json(benchmarkData);
             } catch (parseError) {
-                console.error("Invalid C++ benchmark output:", stdout);
+                console.error(
+                    "Invalid C++ benchmark output:",
+                    stdout,
+                    parseError.message
+                );
 
                 return res.status(500).json({
                     error: "The C++ engine returned invalid benchmark data."
@@ -219,6 +215,7 @@ app.get("/api/benchmark", (req, res) => {
         }
     );
 });
+
 
 // Delete an uploaded document
 app.delete("/api/documents/:storedName", async (req, res) => {

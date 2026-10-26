@@ -67,6 +67,7 @@ async function displaySearchResults(keyword) {
     }
 
     resultCount.textContent = "Searching...";
+
     searchResults.innerHTML = `
         <div class="empty-state">
             <p>Running the C++ search engine...</p>
@@ -128,6 +129,7 @@ async function displaySearchResults(keyword) {
 
     } catch (error) {
         resultCount.textContent = "Search failed";
+
         searchResults.innerHTML = `
             <div class="empty-state">
                 <p>${escapeHTML(error.message)}</p>
@@ -432,22 +434,21 @@ const benchmarkResults =
 
 if (benchmarkButton && benchmarkStatus && benchmarkResults) {
     benchmarkButton.addEventListener("click", async () => {
-        // Use the current search keyword or "merge" as a default.
-        const keyword = searchInput.value.trim() || "merge";
+        const requestedKeyword = searchInput.value.trim() || "merge";
 
         benchmarkButton.disabled = true;
         benchmarkStatus.textContent =
-            `Benchmarking the algorithms with "${keyword}"...`;
+            "Benchmarking all three input sizes...";
 
         benchmarkResults.innerHTML = `
             <div class="empty-state">
-                <p>Running the C++ performance benchmark. Please wait...</p>
+                <p>Running C++ performance tests. Please wait...</p>
             </div>
         `;
 
         try {
             const response = await fetch(
-                `http://localhost:3000/api/benchmark?keyword=${encodeURIComponent(keyword)}`
+                `http://localhost:3000/api/benchmark?keyword=${encodeURIComponent(requestedKeyword)}`
             );
 
             const data = await response.json();
@@ -458,63 +459,150 @@ if (benchmarkButton && benchmarkStatus && benchmarkResults) {
                 );
             }
 
-            if (!Array.isArray(data.results) || data.results.length === 0) {
-                throw new Error("No benchmark results were returned.");
+            const results = data.results;
+
+            if (!Array.isArray(results) || results.length !== 3) {
+                throw new Error(
+                    "Expected benchmark results for small, medium, and large inputs."
+                );
             }
 
-            const validResults = data.results.every(result =>
-                typeof result.algorithm === "string" &&
-                typeof result.time === "number" &&
-                Number.isFinite(result.time) &&
-                result.time >= 0
-            );
+            const expectedSizes = ["small", "medium", "large"];
 
-            if (!validResults) {
-                throw new Error("The benchmark returned invalid timings.");
+            for (const size of expectedSizes) {
+                if (!results.some(result => result.size === size)) {
+                    throw new Error(`Missing ${size} input results.`);
+                }
             }
 
-            const fastestTime = Math.min(
-                ...data.results.map(result => result.time)
-            );
+            const requiredFields = [
+                "characters",
+                "repetitions",
+                "linearSearch",
+                "kmpSearch",
+                "boyerMooreSearch",
+                "linearAverage",
+                "kmpAverage",
+                "boyerMooreAverage"
+            ];
 
+            for (const result of results) {
+                for (const field of requiredFields) {
+                    if (
+                        typeof result[field] !== "number" ||
+                        !Number.isFinite(result[field]) ||
+                        result[field] < 0
+                    ) {
+                        throw new Error(
+                            `Invalid ${field} value for ${result.size} input.`
+                        );
+                    }
+                }
+            }
+
+            // Display the keyword actually used by the C++ engine.
             benchmarkStatus.textContent =
-                `Benchmark completed for "${keyword}" — ` +
-                `${data.repetitions || 10000} repetitions per algorithm.`;
+                `Benchmark completed. Search keyword: "${data.keyword}". ` +
+                `Times are measured in ${data.unit || "microseconds"}.`;
 
-            benchmarkResults.innerHTML = data.results.map(result => {
-                const isFastest = result.time === fastestTime;
+            const algorithms = [
+                {
+                    key: "linearSearch",
+                    averageKey: "linearAverage",
+                    name: "Naive (Linear) Search"
+                },
+                {
+                    key: "kmpSearch",
+                    averageKey: "kmpAverage",
+                    name: "KMP Search"
+                },
+                {
+                    key: "boyerMooreSearch",
+                    averageKey: "boyerMooreAverage",
+                    name: "Boyer-Moore"
+                }
+            ];
 
-                // The bar is a relative comparison of measured times.
-                const barWidth = fastestTime === 0
-                    ? 100
-                    : Math.max(
-                        2,
-                        (result.time / Math.max(
-                            ...data.results.map(item => item.time),
-                            1
-                        )) * 100
-                    );
+            const formatTime = value =>
+                Number(value).toLocaleString(undefined, {
+                    maximumFractionDigits: 4
+                });
 
-                return `
-                    <article class="result-card benchmark-result-card">
-                        <div>
-                            <h4>${escapeHTML(result.algorithm)}</h4>
-                            <p>
-                                ${result.time.toLocaleString()} 
-                                ${escapeHTML(data.unit || "microseconds")}
-                            </p>
-                            <div class="progress-track">
-                                <div class="progress-fill"
-                                     style="width: ${barWidth}%">
+            benchmarkResults.innerHTML = results.map(result => {
+                const fastestAlgorithm = algorithms.reduce(
+                    (fastest, algorithm) =>
+                        result[algorithm.averageKey] <
+                        result[fastest.averageKey]
+                            ? algorithm
+                            : fastest,
+                    algorithms[0]
+                );
+
+                const slowestAverage = Math.max(
+                    ...algorithms.map(
+                        algorithm => result[algorithm.averageKey]
+                    ),
+                    0
+                );
+
+                const cards = algorithms.map(algorithm => {
+                    const average = result[algorithm.averageKey];
+                    const total = result[algorithm.key];
+                    const isFastest = algorithm === fastestAlgorithm;
+
+                    const barWidth = slowestAverage === 0
+                        ? 0
+                        : (average / slowestAverage) * 100;
+
+                    return `
+                        <article class="result-card benchmark-result-card">
+                            <div>
+                                <h4>${escapeHTML(algorithm.name)}</h4>
+                                <p>
+                                    <strong>${formatTime(average)}</strong>
+                                    ${escapeHTML(data.unit || "microseconds")} per search
+                                </p>
+                                <p>
+                                    Total: ${formatTime(total)}
+                                    ${escapeHTML(data.unit || "microseconds")}
+                                    across ${result.repetitions.toLocaleString()} runs
+                                </p>
+                                <div class="progress-track">
+                                    <div class="progress-fill"
+                                         style="width: ${barWidth}%">
+                                    </div>
                                 </div>
                             </div>
+                            ${
+                                isFastest
+                                    ? '<span class="result-badge">Fastest</span>'
+                                    : ""
+                            }
+                        </article>
+                    `;
+                }).join("");
+
+                return `
+                    <section class="benchmark-size-section">
+                        <h3>${escapeHTML(
+                            result.size.charAt(0).toUpperCase() +
+                            result.size.slice(1)
+                        )} Input</h3>
+
+                        <p class="benchmark-size-details">
+                            ${result.characters.toLocaleString()} characters
+                            · ${result.repetitions.toLocaleString()} repetitions per algorithm
+                        </p>
+
+                        <div class="benchmark-algorithm-results">
+                            ${cards}
                         </div>
-                        ${
-                            isFastest
-                                ? '<span class="result-badge">Fastest</span>'
-                                : ""
-                        }
-                    </article>
+
+                        <p class="benchmark-winner">
+                            Fastest for this input:
+                            <strong>${escapeHTML(fastestAlgorithm.name)}</strong>
+                        </p>
+                    </section>
                 `;
             }).join("");
 
@@ -525,8 +613,8 @@ if (benchmarkButton && benchmarkStatus && benchmarkResults) {
                 <div class="empty-state">
                     <p>${escapeHTML(error.message)}</p>
                     <p>
-                        Check that the backend is running and
-                        main.exe supports --benchmark.
+                        Check that the backend is running and the C++
+                        benchmark returns all three input sizes.
                     </p>
                 </div>
             `;
