@@ -1,4 +1,5 @@
 
+#define NOMINMAX
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -7,9 +8,12 @@
 #include <cctype>
 #include <chrono>
 #include <sstream>
+#include <windows.h>
 #include <set>
+
 using namespace std;
 
+// Convert text to lowercase
 string toLowerCase(string text)
 {
     transform(text.begin(), text.end(), text.begin(),
@@ -20,39 +24,33 @@ string toLowerCase(string text)
     return text;
 }
 
+// Linear Search
 bool linearSearch(string text, string pattern)
 {
     int n = text.length();
     int m = pattern.length();
 
     if (m == 0)
-    {
         return true;
-    }
 
     if (m > n)
-    {
         return false;
-    }
 
     for (int i = 0; i <= n - m; i++)
     {
         int j = 0;
 
         while (j < m && text[i + j] == pattern[j])
-        {
             j++;
-        }
 
         if (j == m)
-        {
             return true;
-        }
     }
 
     return false;
 }
 
+// Build LPS array for KMP
 vector<int> buildLPS(string pattern)
 {
     int m = pattern.length();
@@ -72,9 +70,7 @@ vector<int> buildLPS(string pattern)
         else
         {
             if (len != 0)
-            {
                 len = lps[len - 1];
-            }
             else
             {
                 lps[i] = 0;
@@ -86,15 +82,17 @@ vector<int> buildLPS(string pattern)
     return lps;
 }
 
+// KMP Search
 bool kmpSearch(string text, string pattern)
 {
     int n = text.length();
     int m = pattern.length();
 
     if (m == 0)
-    {
         return true;
-    }
+
+    if (m > n)
+        return false;
 
     vector<int> lps = buildLPS(pattern);
 
@@ -110,25 +108,20 @@ bool kmpSearch(string text, string pattern)
         }
 
         if (j == m)
-        {
             return true;
-        }
         else if (i < n && text[i] != pattern[j])
         {
             if (j != 0)
-            {
                 j = lps[j - 1];
-            }
             else
-            {
                 i++;
-            }
         }
     }
 
     return false;
 }
 
+// Boyer-Moore bad character shift
 int badCharShift(string pattern, char mismatch, int j)
 {
     int last = -1;
@@ -136,28 +129,23 @@ int badCharShift(string pattern, char mismatch, int j)
     for (int i = 0; i < j; i++)
     {
         if (pattern[i] == mismatch)
-        {
             last = i;
-        }
     }
 
     return max(1, j - last);
 }
 
+// Boyer-Moore Search
 bool boyerMooreSearch(string text, string pattern)
 {
     int n = text.length();
     int m = pattern.length();
 
     if (m == 0)
-    {
         return true;
-    }
 
     if (m > n)
-    {
         return false;
-    }
 
     int s = 0;
 
@@ -166,14 +154,10 @@ bool boyerMooreSearch(string text, string pattern)
         int j = m - 1;
 
         while (j >= 0 && pattern[j] == text[s + j])
-        {
             j--;
-        }
 
         if (j < 0)
-        {
             return true;
-        }
 
         s += badCharShift(pattern, text[s + j], j);
     }
@@ -181,6 +165,7 @@ bool boyerMooreSearch(string text, string pattern)
     return false;
 }
 
+// Benchmark search algorithms
 long long benchmarkSearch(int algorithm, string text, string pattern)
 {
     const int repetitions = 10000;
@@ -191,22 +176,15 @@ long long benchmarkSearch(int algorithm, string text, string pattern)
     for (int i = 0; i < repetitions; i++)
     {
         if (algorithm == 1)
-        {
             result = linearSearch(text, pattern);
-        }
         else if (algorithm == 2)
-        {
             result = kmpSearch(text, pattern);
-        }
         else if (algorithm == 3)
-        {
             result = boyerMooreSearch(text, pattern);
-        }
     }
 
     auto end = chrono::high_resolution_clock::now();
 
-    // Keep the result observable so the searches aren't treated as unused.
     (void)result;
 
     return chrono::duration_cast<chrono::microseconds>(
@@ -214,6 +192,7 @@ long long benchmarkSearch(int algorithm, string text, string pattern)
         .count();
 }
 
+// Extract unique words from document text
 set<string> getUniqueWords(string text)
 {
     set<string> words;
@@ -229,45 +208,41 @@ set<string> getUniqueWords(string text)
         for (char c : word)
         {
             if (isalnum(static_cast<unsigned char>(c)))
-            {
                 cleanedWord += c;
-            }
         }
 
         if (!cleanedWord.empty())
-        {
             words.insert(cleanedWord);
-        }
     }
 
     return words;
 }
 
-double calculateJaccardSimilarity(set<string> wordsA, set<string> wordsB)
+// Calculate Jaccard similarity
+double calculateJaccardSimilarity(set<string> wordsA,
+                                  set<string> wordsB)
 {
     int intersection = 0;
 
     for (const string &word : wordsA)
     {
         if (wordsB.find(word) != wordsB.end())
-        {
             intersection++;
-        }
     }
 
     set<string> unionWords = wordsA;
     unionWords.insert(wordsB.begin(), wordsB.end());
 
     if (unionWords.empty())
-    {
         return 0.0;
-    }
 
-    double similarity = (double)intersection / unionWords.size();
+    double similarity =
+        (double)intersection / unionWords.size();
 
     return similarity * 100.0;
 }
 
+// Read complete document
 string readDocument(string filename)
 {
     ifstream file(filename);
@@ -275,34 +250,118 @@ string readDocument(string filename)
     string line;
 
     if (!file.is_open())
-    {
         return "";
-    }
 
     while (getline(file, line))
-    {
         content += line + " ";
-    }
 
     file.close();
     return content;
 }
 
+// Escape strings for valid JSON output
+string jsonEscape(string text)
+{
+    string result;
+
+    for (char c : text)
+    {
+        if (c == '\\')
+            result += "\\\\";
+        else if (c == '"')
+            result += "\\\"";
+        else if (c == '\n')
+            result += "\\n";
+        else if (c == '\r')
+            result += "\\r";
+        else if (c == '\t')
+            result += "\\t";
+        else
+            result += c;
+    }
+
+    return result;
+}
+
+// Add all uploaded TXT files to the document list
+void addUploadedDocuments(vector<string> &filenames)
+{
+    WIN32_FIND_DATAA findData;
+
+    HANDLE hFind = FindFirstFileA(
+        "uploads\\*.txt", &findData);
+
+    if (hFind == INVALID_HANDLE_VALUE)
+        return;
+
+    do
+    {
+        if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            string filename = "uploads/";
+            filename += findData.cFileName;
+
+            filenames.push_back(filename);
+        }
+
+    } while (FindNextFileA(hFind, &findData));
+
+    FindClose(hFind);
+}
+
 int main(int argc, char *argv[])
 {
+    // Predefined sample documents
     vector<string> filenames = {
         "documents/sample1.txt",
         "documents/sample2.txt",
         "documents/sample3.txt"};
 
-    // API mode: receive the search keyword from Node.js.
+    // Add uploaded documents automatically
+    addUploadedDocuments(filenames);
+
+    // API mode: benchmark the three search algorithms
+    if (argc >= 3 && string(argv[1]) == "--benchmark")
+    {
+        string keyword = toLowerCase(argv[2]);
+
+        string benchmarkText = "";
+
+        for (const string &filename : filenames)
+        {
+            benchmarkText += readDocument(filename) + " ";
+        }
+
+        if (benchmarkText.empty())
+        {
+            cerr << "No document content available for benchmarking.";
+            return 1;
+        }
+
+        long long linearTime =
+            benchmarkSearch(1, benchmarkText, keyword);
+
+        long long kmpTime =
+            benchmarkSearch(2, benchmarkText, keyword);
+
+        long long boyerMooreTime =
+            benchmarkSearch(3, benchmarkText, keyword);
+
+        cout << "{"
+             << "\"linearSearch\":" << linearTime << ","
+             << "\"kmpSearch\":" << kmpTime << ","
+             << "\"boyerMooreSearch\":" << boyerMooreTime
+             << "}" << endl;
+
+        return 0;
+    }
+
+    // API mode: used by the Node.js backend
     if (argc >= 3 && string(argv[1]) == "--search")
     {
         string keyword = toLowerCase(argv[2]);
-        bool foundAny = false;
 
         cout << "[";
-
         bool firstResult = true;
 
         for (const string &filename : filenames)
@@ -310,39 +369,40 @@ int main(int argc, char *argv[])
             ifstream file(filename);
 
             if (!file.is_open())
-            {
                 continue;
-            }
 
             string line;
             bool documentMatches = false;
 
             while (getline(file, line))
             {
-                if (boyerMooreSearch(toLowerCase(line), keyword))
+                if (boyerMooreSearch(
+                        toLowerCase(line), keyword))
                 {
                     documentMatches = true;
                     break;
                 }
             }
 
+            file.close();
+
             if (documentMatches)
             {
                 if (!firstResult)
-                {
                     cout << ",";
-                }
 
-                cout << "\"" << filename << "\"";
+                cout << "\"" << jsonEscape(filename) << "\"";
                 firstResult = false;
-                foundAny = true;
             }
         }
+
+       
 
         cout << "]" << endl;
         return 0;
     }
 
+    // Interactive search mode
     string keyword;
 
     cout << "Enter keyword to search: ";
@@ -352,13 +412,14 @@ int main(int argc, char *argv[])
 
     bool foundAny = false;
 
-    for (int i = 0; i < filenames.size(); i++)
+    for (const string &filename : filenames)
     {
-        ifstream file(filenames[i]);
+        ifstream file(filename);
 
         if (!file.is_open())
         {
-            cout << "Could not open: " << filenames[i] << endl;
+            cout << "Could not open: "
+                 << filename << endl;
             continue;
         }
 
@@ -367,9 +428,8 @@ int main(int argc, char *argv[])
 
         while (getline(file, line))
         {
-            line = toLowerCase(line);
-
-            if (boyerMooreSearch(line, keyword))
+            if (boyerMooreSearch(
+                    toLowerCase(line), keyword))
             {
                 foundInFile = true;
                 break;
@@ -380,40 +440,49 @@ int main(int argc, char *argv[])
 
         if (foundInFile)
         {
-            cout << "Found in: " << filenames[i] << endl;
+            cout << "Found in: "
+                 << filename << endl;
             foundAny = true;
         }
     }
 
     if (!foundAny)
-    {
         cout << "Keyword not found in any document." << endl;
-    }
 
+    // Algorithm performance comparison
     cout << "\n--- Algorithm Performance Comparison ---\n";
 
-    long long naiveTime = benchmarkSearch(1,
-                                          "merge sort is a sorting algorithm", keyword);
+    string benchmarkText =
+        "merge sort is a sorting algorithm";
 
-    long long kmpTime = benchmarkSearch(2,
-                                        "merge sort is a sorting algorithm", keyword);
+    long long naiveTime =
+        benchmarkSearch(1, benchmarkText, keyword);
 
-    long long boyerMooreTime = benchmarkSearch(3,
-                                               "merge sort is a sorting algorithm", keyword);
+    long long kmpTime =
+        benchmarkSearch(2, benchmarkText, keyword);
 
-    cout << "Naive Search: " << naiveTime << " microseconds\n";
-    cout << "KMP Search: " << kmpTime << " microseconds\n";
-    cout << "Boyer-Moore Search: " << boyerMooreTime << " microseconds\n";
+    long long boyerMooreTime =
+        benchmarkSearch(3, benchmarkText, keyword);
 
+    cout << "Naive Search: " << naiveTime
+         << " microseconds\n";
+
+    cout << "KMP Search: " << kmpTime
+         << " microseconds\n";
+
+    cout << "Boyer-Moore Search: " << boyerMooreTime
+         << " microseconds\n";
+
+    // Document similarity analysis
     cout << "\n--- Document Similarity Analysis ---\n";
 
     double maxSimilarity = -1.0;
     string mostSimilarDoc1 = "";
     string mostSimilarDoc2 = "";
 
-    for (int i = 0; i < filenames.size(); i++)
+    for (int i = 0; i < (int)filenames.size(); i++)
     {
-        for (int j = i + 1; j < filenames.size(); j++)
+        for (int j = i + 1; j < (int)filenames.size(); j++)
         {
             string textA = readDocument(filenames[i]);
             string textB = readDocument(filenames[j]);
@@ -431,8 +500,9 @@ int main(int argc, char *argv[])
                 mostSimilarDoc2 = filenames[j];
             }
 
-            cout << filenames[i] << " vs " << filenames[j]
-                 << " : " << similarity << "% similarity\n";
+            cout << filenames[i] << " vs "
+                 << filenames[j] << " : "
+                 << similarity << "% similarity\n";
         }
     }
 

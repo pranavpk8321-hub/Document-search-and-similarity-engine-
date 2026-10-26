@@ -1,22 +1,21 @@
 
 const express = require("express");
 const cors = require("cors");
-
 const multer = require("multer");
 const fs = require("fs");
-
 const { execFile } = require("child_process");
 const path = require("path");
-
 
 const app = express();
 const PORT = 3000;
 
 const projectRoot = path.resolve(__dirname, "..");
 const uploadsDirectory = path.join(projectRoot, "uploads");
+const executablePath = path.join(projectRoot, "main.exe");
 
 fs.mkdirSync(uploadsDirectory, { recursive: true });
 
+// Multer storage configuration
 const storage = multer.diskStorage({
     destination: (req, file, callback) => {
         callback(null, uploadsDirectory);
@@ -29,6 +28,7 @@ const storage = multer.diskStorage({
     }
 });
 
+// Upload validation
 const upload = multer({
     storage,
     limits: {
@@ -43,7 +43,6 @@ const upload = multer({
         callback(null, true);
     }
 });
-
 
 // Middleware
 app.use(cors());
@@ -65,11 +64,13 @@ app.get("/api/health", (req, res) => {
     });
 });
 
+// Get uploaded documents
 app.get("/api/documents", async (req, res) => {
     try {
         const entries = await fs.promises.readdir(uploadsDirectory, {
             withFileTypes: true
         });
+
         const files = await Promise.all(
             entries
                 .filter(entry =>
@@ -96,8 +97,7 @@ app.get("/api/documents", async (req, res) => {
     }
 });
 
-// Start server
-
+// Search documents using the C++ engine
 app.get("/api/search", (req, res) => {
     const keyword = req.query.keyword;
 
@@ -106,9 +106,6 @@ app.get("/api/search", (req, res) => {
             error: "Please provide a search keyword."
         });
     }
-
-    const projectRoot = path.resolve(__dirname, "..");
-    const executablePath = path.join(projectRoot, "main.exe");
 
     execFile(
         executablePath,
@@ -133,10 +130,10 @@ app.get("/api/search", (req, res) => {
                 return res.json({
                     keyword: keyword.trim(),
                     algorithm: "Boyer-Moore",
-                    results: results
+                    results
                 });
             } catch (parseError) {
-                console.error("Invalid C++ output:", stdout);
+                console.error("Invalid C++ search output:", stdout);
 
                 return res.status(500).json({
                     error: "The C++ engine returned an invalid response."
@@ -146,6 +143,84 @@ app.get("/api/search", (req, res) => {
     );
 });
 
+// Benchmark all three C++ search algorithms
+app.get("/api/benchmark", (req, res) => {
+    const keyword = req.query.keyword;
+
+    if (typeof keyword !== "string" || !keyword.trim()) {
+        return res.status(400).json({
+            error: "Please provide a search keyword."
+        });
+    }
+
+    execFile(
+        executablePath,
+        ["--benchmark", keyword.trim()],
+        {
+            cwd: projectRoot,
+            timeout: 15000,
+            maxBuffer: 1024 * 1024
+        },
+        (error, stdout, stderr) => {
+            if (error) {
+                console.error(
+                    "C++ benchmark failed:",
+                    stderr || error.message
+                );
+
+                return res.status(500).json({
+                    error: "The C++ benchmark could not complete."
+                });
+            }
+
+            try {
+                const timings = JSON.parse(stdout);
+
+                const validTimings = [
+                    timings.linearSearch,
+                    timings.kmpSearch,
+                    timings.boyerMooreSearch
+                ].every(value =>
+                    typeof value === "number" &&
+                    Number.isFinite(value) &&
+                    value >= 0
+                );
+
+                if (!validTimings) {
+                    throw new Error("Invalid timing values.");
+                }
+
+                return res.json({
+                    keyword: keyword.trim(),
+                    unit: "microseconds",
+                    repetitions: 10000,
+                    results: [
+                        {
+                            algorithm: "Naive Search",
+                            time: timings.linearSearch
+                        },
+                        {
+                            algorithm: "KMP Search",
+                            time: timings.kmpSearch
+                        },
+                        {
+                            algorithm: "Boyer-Moore",
+                            time: timings.boyerMooreSearch
+                        }
+                    ]
+                });
+            } catch (parseError) {
+                console.error("Invalid C++ benchmark output:", stdout);
+
+                return res.status(500).json({
+                    error: "The C++ engine returned invalid benchmark data."
+                });
+            }
+        }
+    );
+});
+
+// Delete an uploaded document
 app.delete("/api/documents/:storedName", async (req, res) => {
     const { storedName } = req.params;
 
@@ -159,7 +234,10 @@ app.delete("/api/documents/:storedName", async (req, res) => {
     }
 
     try {
-        await fs.promises.unlink(path.join(uploadsDirectory, storedName));
+        await fs.promises.unlink(
+            path.join(uploadsDirectory, storedName)
+        );
+
         return res.sendStatus(204);
     } catch (error) {
         if (error.code === "ENOENT") {
@@ -176,6 +254,7 @@ app.delete("/api/documents/:storedName", async (req, res) => {
     }
 });
 
+// Upload TXT documents
 app.post("/api/upload", (req, res) => {
     upload.array("documents", 10)(req, res, (error) => {
         if (error) {
@@ -203,6 +282,7 @@ app.post("/api/upload", (req, res) => {
     });
 });
 
+// Start server
 app.listen(PORT, () => {
     console.log(`DocuSense backend running at http://localhost:${PORT}`);
 });

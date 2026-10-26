@@ -261,7 +261,6 @@ uploadButton.addEventListener("click", async () => {
                 continue;
             }
 
-            // Prevent adding the same stored file twice.
             const alreadyExists = documents.some(
                 document =>
                     document.storedName &&
@@ -306,6 +305,7 @@ const libraryCount = document.getElementById("libraryCount");
 function renderDocumentLibrary() {
     document.getElementById("documentCount").textContent =
         documents.length;
+
     libraryCount.textContent =
         `${documents.length} document${documents.length === 1 ? "" : "s"}`;
 
@@ -350,16 +350,20 @@ function renderDocumentLibrary() {
                         `http://localhost:3000/api/documents/${encodeURIComponent(doc.storedName)}`,
                         { method: "DELETE" }
                     );
+
                     const data = response.status === 204
                         ? {}
                         : await response.json();
 
                     if (!response.ok) {
-                        throw new Error(data.error || "Document removal failed.");
+                        throw new Error(
+                            data.error || "Document removal failed."
+                        );
                     }
                 } catch (error) {
                     uploadStatus.textContent =
                         `Could not remove document: ${error.message}`;
+
                     removeButton.disabled = false;
                     return;
                 }
@@ -380,11 +384,16 @@ renderDocumentLibrary();
 
 async function loadUploadedDocuments() {
     try {
-        const response = await fetch("http://localhost:3000/api/documents");
+        const response = await fetch(
+            "http://localhost:3000/api/documents"
+        );
+
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || "Document list request failed.");
+            throw new Error(
+                data.error || "Document list request failed."
+            );
         }
 
         for (const uploadedDocument of data.files) {
@@ -399,6 +408,7 @@ async function loadUploadedDocuments() {
         }
 
         renderDocumentLibrary();
+
     } catch (error) {
         uploadStatus.textContent =
             `Could not load saved documents: ${error.message}`;
@@ -406,3 +416,122 @@ async function loadUploadedDocuments() {
 }
 
 loadUploadedDocuments();
+
+// ------------------------------------------
+// PERFORMANCE BENCHMARK
+// ------------------------------------------
+
+const benchmarkButton =
+    document.getElementById("benchmarkButton");
+
+const benchmarkStatus =
+    document.getElementById("benchmarkStatus");
+
+const benchmarkResults =
+    document.getElementById("benchmarkResults");
+
+if (benchmarkButton && benchmarkStatus && benchmarkResults) {
+    benchmarkButton.addEventListener("click", async () => {
+        // Use the current search keyword or "merge" as a default.
+        const keyword = searchInput.value.trim() || "merge";
+
+        benchmarkButton.disabled = true;
+        benchmarkStatus.textContent =
+            `Benchmarking the algorithms with "${keyword}"...`;
+
+        benchmarkResults.innerHTML = `
+            <div class="empty-state">
+                <p>Running the C++ performance benchmark. Please wait...</p>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(
+                `http://localhost:3000/api/benchmark?keyword=${encodeURIComponent(keyword)}`
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || "Benchmark request failed."
+                );
+            }
+
+            if (!Array.isArray(data.results) || data.results.length === 0) {
+                throw new Error("No benchmark results were returned.");
+            }
+
+            const validResults = data.results.every(result =>
+                typeof result.algorithm === "string" &&
+                typeof result.time === "number" &&
+                Number.isFinite(result.time) &&
+                result.time >= 0
+            );
+
+            if (!validResults) {
+                throw new Error("The benchmark returned invalid timings.");
+            }
+
+            const fastestTime = Math.min(
+                ...data.results.map(result => result.time)
+            );
+
+            benchmarkStatus.textContent =
+                `Benchmark completed for "${keyword}" — ` +
+                `${data.repetitions || 10000} repetitions per algorithm.`;
+
+            benchmarkResults.innerHTML = data.results.map(result => {
+                const isFastest = result.time === fastestTime;
+
+                // The bar is a relative comparison of measured times.
+                const barWidth = fastestTime === 0
+                    ? 100
+                    : Math.max(
+                        2,
+                        (result.time / Math.max(
+                            ...data.results.map(item => item.time),
+                            1
+                        )) * 100
+                    );
+
+                return `
+                    <article class="result-card benchmark-result-card">
+                        <div>
+                            <h4>${escapeHTML(result.algorithm)}</h4>
+                            <p>
+                                ${result.time.toLocaleString()} 
+                                ${escapeHTML(data.unit || "microseconds")}
+                            </p>
+                            <div class="progress-track">
+                                <div class="progress-fill"
+                                     style="width: ${barWidth}%">
+                                </div>
+                            </div>
+                        </div>
+                        ${
+                            isFastest
+                                ? '<span class="result-badge">Fastest</span>'
+                                : ""
+                        }
+                    </article>
+                `;
+            }).join("");
+
+        } catch (error) {
+            benchmarkStatus.textContent = "Benchmark failed.";
+
+            benchmarkResults.innerHTML = `
+                <div class="empty-state">
+                    <p>${escapeHTML(error.message)}</p>
+                    <p>
+                        Check that the backend is running and
+                        main.exe supports --benchmark.
+                    </p>
+                </div>
+            `;
+        } finally {
+            benchmarkButton.disabled = false;
+        }
+    });
+}

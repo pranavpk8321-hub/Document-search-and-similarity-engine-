@@ -207,10 +207,20 @@
                 </article>
             </div>
 
-            <p class="note">
-                Execution-time measurements will be connected to the C++ engine
-                in a later step.
-            </p>
+            <div class="benchmark-controls">
+                <button id="benchmarkButton" class="secondary-button">
+                    Run Performance Benchmark
+                </button>
+                <p id="benchmarkStatus" aria-live="polite">
+                    Ready to benchmark.
+                </p>
+            </div>
+
+            <div id="benchmarkResults" class="results-list">
+                <div class="empty-state">
+                    <p>Run the benchmark to compare algorithm execution times.</p>
+                </div>
+            </div>
         </section>
 
         <footer>
