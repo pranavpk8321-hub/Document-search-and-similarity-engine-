@@ -145,6 +145,7 @@ app.get("/api/search", (req, res) => {
 
 // Benchmark all three C++ search algorithms
 
+
 app.get("/api/benchmark", (req, res) => {
     const keyword = req.query.keyword;
 
@@ -160,7 +161,7 @@ app.get("/api/benchmark", (req, res) => {
         {
             cwd: projectRoot,
             timeout: 30000,
-            maxBuffer: 1024 * 1024
+            maxBuffer: 5 * 1024 * 1024
         },
         (error, stdout, stderr) => {
             if (error) {
@@ -177,30 +178,124 @@ app.get("/api/benchmark", (req, res) => {
             try {
                 const benchmarkData = JSON.parse(stdout);
 
-                if (
-                    !Array.isArray(benchmarkData.results) ||
-                    benchmarkData.results.length !== 3
-                ) {
-                    throw new Error("Invalid benchmark results.");
+                if (!Array.isArray(benchmarkData)) {
+                    throw new Error(
+                        "Expected an array of benchmark test cases."
+                    );
                 }
 
-                const validResults = benchmarkData.results.every(item =>
-                    ["small", "medium", "large"].includes(item.size) &&
-                    Number.isFinite(item.characters) &&
-                    Number.isFinite(item.repetitions) &&
-                    Number.isFinite(item.linearSearch) &&
-                    Number.isFinite(item.kmpSearch) &&
-                    Number.isFinite(item.boyerMooreSearch) &&
-                    Number.isFinite(item.linearAverage) &&
-                    Number.isFinite(item.kmpAverage) &&
-                    Number.isFinite(item.boyerMooreAverage)
-                );
+                const sizeMap = {
+                    1000: "small",
+                    10000: "medium",
+                    100000: "large"
+                };
 
-                if (!validResults) {
-                    throw new Error("Invalid benchmark timing values.");
+                const algorithmMap = {
+                    "Iterative Search": {
+                        totalKey: "linearSearch",
+                        averageKey: "linearAverage"
+                    },
+                    "KMP": {
+                        totalKey: "kmpSearch",
+                        averageKey: "kmpAverage"
+                    },
+                    "Boyer-Moore (bad-character)": {
+                        totalKey: "boyerMooreSearch",
+                        averageKey: "boyerMooreAverage"
+                    }
+                };
+
+                const groupedResults = {};
+
+                for (const test of benchmarkData) {
+                    const size = sizeMap[test.text_size];
+
+                    if (!size || !Array.isArray(test.results)) {
+                        throw new Error(
+                            "Unexpected benchmark test-case format."
+                        );
+                    }
+
+                    if (!groupedResults[size]) {
+                        groupedResults[size] = {
+                            size,
+                            characters: test.text_size,
+                            repetitions: 0,
+                            linearSearch: 0,
+                            kmpSearch: 0,
+                            boyerMooreSearch: 0,
+                            linearAverage: 0,
+                            kmpAverage: 0,
+                            boyerMooreAverage: 0,
+                            testCases: 0
+                        };
+                    }
+
+                    const group = groupedResults[size];
+                    group.testCases++;
+
+                    for (const result of test.results) {
+                        const mapping = algorithmMap[result.algorithm];
+
+                        if (!mapping) {
+                            throw new Error(
+                                `Unknown algorithm: ${result.algorithm}`
+                            );
+                        }
+
+                        const total =
+                            Number(result.search_total_microseconds);
+
+                        const average =
+                            Number(result.average_search_microseconds);
+
+                        if (
+                            !Number.isFinite(total) ||
+                            !Number.isFinite(average) ||
+                            total < 0 ||
+                            average < 0
+                        ) {
+                            throw new Error(
+                                "Invalid benchmark timing values."
+                            );
+                        }
+
+                        group[mapping.totalKey] += total;
+                        group[mapping.averageKey] += average;
+                    }
+
+                    group.repetitions += Number(test.repetitions) || 0;
                 }
 
-                return res.json(benchmarkData);
+                const results = ["small", "medium", "large"].map(size => {
+                    const group = groupedResults[size];
+
+                    if (!group || group.testCases === 0) {
+                        throw new Error(
+                            `Missing ${size} benchmark results.`
+                        );
+                    }
+
+                    // Average the timings across the test patterns.
+                    for (const key of [
+                        "linearAverage",
+                        "kmpAverage",
+                        "boyerMooreAverage"
+                    ]) {
+                        group[key] /= group.testCases;
+                    }
+
+                    delete group.testCases;
+
+                    return group;
+                });
+
+                return res.json({
+                    keyword: keyword.trim(),
+                    unit: "microseconds",
+                    results
+                });
+
             } catch (parseError) {
                 console.error(
                     "Invalid C++ benchmark output:",
@@ -209,7 +304,8 @@ app.get("/api/benchmark", (req, res) => {
                 );
 
                 return res.status(500).json({
-                    error: "The C++ engine returned invalid benchmark data."
+                    error:
+                        "The C++ engine returned invalid benchmark data."
                 });
             }
         }

@@ -83,6 +83,43 @@ function highlightMatches(text, keyword) {
         .join("");
 }
 
+function createSearchPreview(text, keyword, contextLength = 100) {
+    const content = String(text || "");
+    const query = String(keyword || "").trim();
+
+    if (!content) {
+        return "No document content available.";
+    }
+
+    if (!query) {
+        return escapeHTML(content.slice(0, contextLength * 2));
+    }
+
+    const index = content.toLowerCase().indexOf(query.toLowerCase());
+
+    // If the exact phrase isn't found, show the beginning of the document.
+    if (index === -1) {
+        const preview = content.slice(0, contextLength * 2);
+        return escapeHTML(preview) +
+            (content.length > preview.length ? "..." : "");
+    }
+
+    const start = Math.max(0, index - contextLength);
+    const end = Math.min(
+        content.length,
+        index + query.length + contextLength
+    );
+
+    const preview = content.slice(start, end);
+
+    return (
+        (start > 0 ? "..." : "") +
+        highlightMatches(preview, query) +
+        (end < content.length ? "..." : "")
+    );
+}
+
+
 
 // Return a stable key for identifying a document.
 function getDocumentKey(doc) {
@@ -139,32 +176,55 @@ async function displaySearchResults(keyword) {
             return;
         }
 
+
         searchResults.innerHTML = matches.map(filename => {
-            const matchedDocument = documents.find(item =>
-                filename === `documents/${item.name}` ||
-                filename === `uploads/${item.storedName}` ||
-                filename.endsWith("/" + item.name) ||
-                filename.endsWith("\\" + item.name)
-            );
+            // Normalize Windows paths and extract the stored filename.
+            const normalizedPath = filename.replace(/\\/g, "/");
+            const basename = normalizedPath.split("/").pop();
+
+            // Match the C++ result against the frontend document library.
+            const matchedDocument = documents.find(item => {
+                const possibleNames = [
+                    item.name,
+                    item.storedName
+                ].filter(Boolean);
+
+                return possibleNames.some(name =>
+                    name === basename ||
+                    basename.endsWith("-" + name)
+                );
+            });
 
             const displayName = matchedDocument
                 ? matchedDocument.name
-                : filename.split(/[\\/]/).pop();
+                : basename;
 
             const content = matchedDocument
                 ? matchedDocument.content
-                : "This document matched the keyword in the C++ engine.";
+                : "";
+
+            const preview = createSearchPreview(
+                content,
+                normalizedKeyword
+            );
 
             return `
-                <article class="result-card">
-                    <div>
-                        <h4>${escapeHTML(displayName)}</h4>
-                        <p>${highlightMatches(content, normalizedKeyword)}</p>
-                    </div>
-                    <span class="result-badge">C++ Match</span>
-                </article>
-            `;
+        <article class="result-card">
+            <div>
+                <h4>${escapeHTML(displayName)}</h4>
+                <p>${preview}</p>
+                ${!matchedDocument ? `
+                    <small>
+                        Search matched this file in C++, but its
+                        content is not available in the frontend.
+                    </small>
+                ` : ""}
+            </div>
+            <span class="result-badge">C++ Match</span>
+        </article>
+    `;
         }).join("");
+
 
     } catch (error) {
         resultCount.textContent = "Search failed";
