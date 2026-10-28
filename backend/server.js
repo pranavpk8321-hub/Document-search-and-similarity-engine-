@@ -312,6 +312,103 @@ app.get("/api/benchmark", (req, res) => {
     );
 });
 
+/* Compare two documents using the C++ Jaccard and LCS algorithms */
+app.post("/api/similarity", (req, res) => {
+    const { document1, document2 } = req.body;
+
+    if (
+        typeof document1 !== "string" ||
+        typeof document2 !== "string" ||
+        !document1.trim() ||
+        !document2.trim()
+    ) {
+        return res.status(400).json({
+            error: "Please select two documents to compare."
+        });
+    }
+
+    // Resolve only known sample documents or uploaded files.
+    function resolveDocument(name) {
+        const sampleFiles = {
+            "sample1.txt": "documents/sample1.txt",
+            "sample2.txt": "documents/sample2.txt",
+            "sample3.txt": "documents/sample3.txt"
+        };
+
+        if (sampleFiles[name]) {
+            return sampleFiles[name];
+        }
+
+        // Uploaded files use their storedName, not their display name.
+        if (
+            path.basename(name) === name &&
+            path.extname(name).toLowerCase() === ".txt"
+        ) {
+            const uploadedPath = path.join(uploadsDirectory, name);
+
+            if (fs.existsSync(uploadedPath)) {
+                return path.join("uploads", name);
+            }
+        }
+
+        return null;
+    }
+
+    const file1 = resolveDocument(document1);
+    const file2 = resolveDocument(document2);
+
+    if (!file1 || !file2) {
+        return res.status(404).json({
+            error: "One or both documents could not be found."
+        });
+    }
+
+    if (file1 === file2) {
+        return res.status(400).json({
+            error: "Please select two different documents."
+        });
+    }
+
+    execFile(
+        executablePath,
+        ["--similarity", file1, file2],
+        {
+            cwd: projectRoot,
+            timeout: 15000,
+            maxBuffer: 1024 * 1024
+        },
+        (error, stdout, stderr) => {
+            if (error) {
+                console.error(
+                    "C++ similarity calculation failed:",
+                    stderr || error.message
+                );
+
+                return res.status(500).json({
+                    error: "Could not calculate document similarity."
+                });
+            }
+
+            try {
+                const scores = JSON.parse(stdout);
+
+                return res.json({
+                    document1,
+                    document2,
+                    jaccardSimilarity: scores.jaccardSimilarity,
+                    lcsSimilarity: scores.lcsSimilarity
+                });
+            } catch (parseError) {
+                console.error("Invalid similarity output:", stdout);
+
+                return res.status(500).json({
+                    error: "The C++ engine returned invalid similarity data."
+                });
+            }
+        }
+    );
+});
+
 
 // Delete an uploaded document
 app.delete("/api/documents/:storedName", async (req, res) => {

@@ -383,7 +383,8 @@ function createSimilarityCard(documentA, documentB, similarity) {
 }
 
 // Compare the two selected documents.
-function compareSelectedDocuments() {
+
+async function compareSelectedDocuments() {
     if (
         !similarityDocumentA ||
         !similarityDocumentB ||
@@ -399,14 +400,14 @@ function compareSelectedDocuments() {
     if (!keyA || !keyB) {
         pairSimilarityStatus.textContent =
             "Please select both documents before comparing.";
-        pairSimilarityResult.innerHTML = "";
+        pairSimilarityResult.textContent = "";
         return;
     }
 
     if (keyA === keyB) {
         pairSimilarityStatus.textContent =
             "Please select two different documents.";
-        pairSimilarityResult.innerHTML = "";
+        pairSimilarityResult.textContent = "";
         return;
     }
 
@@ -416,25 +417,62 @@ function compareSelectedDocuments() {
     if (!documentA || !documentB) {
         pairSimilarityStatus.textContent =
             "One of the selected documents is no longer available.";
-        pairSimilarityResult.innerHTML = "";
+        pairSimilarityResult.textContent = "";
         renderSimilaritySelectors();
         return;
     }
 
-    const similarity = calculateJaccardSimilarity(
-        documentA.content,
-        documentB.content
-    );
-
     pairSimilarityStatus.textContent =
-        `Comparison complete: ${documentA.name} vs ${documentB.name}.`;
+        "Calculating similarity...";
+    pairSimilarityResult.textContent = "";
 
-    pairSimilarityResult.innerHTML = createSimilarityCard(
-        documentA,
-        documentB,
-        similarity
-    );
+    try {
+        const response = await fetch("http://localhost:3000/api/similarity", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                document1: documentA.storedName || documentA.name,
+                document2: documentB.storedName || documentB.name
+            })
+        });
+
+        const responseText = await response.text();
+
+        let data;
+
+        try {
+            data = JSON.parse(responseText);
+        } catch (error) {
+            console.error("Invalid backend response:", responseText);
+            throw new Error(
+                "Backend returned an empty or invalid response. Check the backend terminal."
+            );
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Similarity calculation failed."
+            );
+        }
+
+        pairSimilarityStatus.textContent =
+            `Comparison complete: ${documentA.name} vs ${documentB.name}.`;
+
+        pairSimilarityResult.textContent =
+            `Jaccard Similarity: ${Number(data.jaccardSimilarity).toFixed(2)}%\n` +
+            `LCS Similarity: ${Number(data.lcsSimilarity).toFixed(2)}%`;
+
+        pairSimilarityResult.style.whiteSpace = "pre-line";
+
+    } catch (error) {
+        pairSimilarityStatus.textContent =
+            "Could not calculate document similarity.";
+        pairSimilarityResult.textContent = error.message;
+    }
 }
+
 
 // Compare every unique pair of documents.
 function analyzeDocuments() {
