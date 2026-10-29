@@ -179,7 +179,7 @@ nav a.active {
 
 .stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 25px;
 }
@@ -212,11 +212,6 @@ nav a.active {
 .stat-card > span {
     color: var(--muted);
     font-size: 11px;
-}
-
-.stat-card .status-text {
-    color: var(--green);
-    font-size: 20px;
 }
 
 .panel {

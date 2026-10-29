@@ -334,28 +334,6 @@ string readDocument(const string &filename)
     return contents.str();
 }
 
-set<string> getUniqueWords(const string &text)
-{
-    vector<string> tokens = tokenizeWords(text);
-    return set<string>(tokens.begin(), tokens.end());
-}
-
-double jaccardSimilarity(const string &text1, const string &text2)
-{
-    set<string> words1 = getUniqueWords(text1);
-    set<string> words2 = getUniqueWords(text2);
-    if (words1.empty() && words2.empty())
-        return 1.0;
-    size_t intersectionCount = 0;
-    for (const string &word : words1)
-        if (words2.find(word) != words2.end())
-            ++intersectionCount;
-    size_t unionCount = words1.size() + words2.size() - intersectionCount;
-    if (unionCount == 0)
-        return 0.0;
-    return static_cast<double>(intersectionCount) / static_cast<double>(unionCount);
-}
-
 vector<string> discoverUploadedFiles()
 {
     vector<string> files;
@@ -641,13 +619,12 @@ void interactiveMode()
 
         if (docs.size() >= 2)
         {
-            cout << "\nDocument similarity (Jaccard and LCS):\n";
+            cout << "\nDocument similarity (LCS):\n";
             for (size_t i = 0; i < docs.size(); ++i)
                 for (size_t j = i + 1; j < docs.size(); ++j)
                     cout << " " << docs[i].first << " <-> " << docs[j].first
-                         << " | Jaccard: " << fixed << setprecision(2)
-                         << jaccardSimilarity(docs[i].second, docs[j].second) * 100.0 << "%"
-                         << " | LCS: " << lcsSimilarity(docs[i].second, docs[j].second) << "%\n";
+                         << " | LCS: " << fixed << setprecision(2)
+                         << lcsSimilarity(docs[i].second, docs[j].second) << "%\n";
         }
         else
             cout << "\nAt least two readable documents are needed for similarity comparison.\n";
@@ -681,9 +658,7 @@ int main(int argc, char *argv[])
 
         cout << fixed << setprecision(2);
         cout << "{"
-             << "\"jaccardSimilarity\":"
-             << jaccardSimilarity(text1, text2) * 100.0
-             << ",\"lcsSimilarity\":"
+             << "\"lcsSimilarity\":"
              << lcsSimilarity(text1, text2)
              << "}\n";
 

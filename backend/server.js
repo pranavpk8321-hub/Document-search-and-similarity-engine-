@@ -312,7 +312,7 @@ app.get("/api/benchmark", (req, res) => {
     );
 });
 
-/* Compare two documents using the C++ Jaccard and LCS algorithms */
+/* Compare two documents using the C++ LCS algorithm */
 app.post("/api/similarity", (req, res) => {
     const { document1, document2 } = req.body;
 
@@ -395,7 +395,6 @@ app.post("/api/similarity", (req, res) => {
                 return res.json({
                     document1,
                     document2,
-                    jaccardSimilarity: scores.jaccardSimilarity,
                     lcsSimilarity: scores.lcsSimilarity
                 });
             } catch (parseError) {

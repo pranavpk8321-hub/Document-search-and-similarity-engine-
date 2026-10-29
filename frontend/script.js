@@ -18,33 +18,35 @@ let documents = [
 // TEXT PROCESSING AND SIMILARITY
 // ------------------------------------------
 
-// Convert text to lowercase and extract unique words.
-function getUniqueWords(text) {
-    const words = String(text || "").toLowerCase().match(/[a-z0-9]+/g) || [];
-    return new Set(words);
-}
+// Calculate LCS token similarity as a percentage.
+function calculateLcsSimilarity(textA, textB) {
+    const wordsA = String(textA || "").toLowerCase().match(/[a-z0-9]+/g) || [];
+    const wordsB = String(textB || "").toLowerCase().match(/[a-z0-9]+/g) || [];
+    const maxTokens = 3000;
+    wordsA.length = Math.min(wordsA.length, maxTokens);
+    wordsB.length = Math.min(wordsB.length, maxTokens);
 
-// Calculate Jaccard similarity as a percentage.
-function calculateJaccardSimilarity(textA, textB) {
-    const wordsA = getUniqueWords(textA);
-    const wordsB = getUniqueWords(textB);
-
-    const union = new Set([...wordsA, ...wordsB]);
-
-    // Avoid division by zero when both documents are empty.
-    if (union.size === 0) {
-        return 0;
+    if (wordsA.length === 0 && wordsB.length === 0) {
+        return 100;
     }
 
-    let intersection = 0;
+    let previous = new Array(wordsB.length + 1).fill(0);
+    let current = new Array(wordsB.length + 1).fill(0);
 
-    for (const word of wordsA) {
-        if (wordsB.has(word)) {
-            intersection++;
+    for (let i = 1; i <= wordsA.length; i++) {
+        for (let j = 1; j <= wordsB.length; j++) {
+            current[j] = wordsA[i - 1] === wordsB[j - 1]
+                ? previous[j - 1] + 1
+                : Math.max(previous[j], current[j - 1]);
         }
+        [previous, current] = [current, previous];
+        current.fill(0);
     }
 
-    return (intersection / union.size) * 100;
+    const comparedLength = wordsA.length + wordsB.length;
+    return comparedLength === 0
+        ? 0
+        : (200 * previous[wordsB.length]) / comparedLength;
 }
 
 // Escape text before displaying it in HTML.
@@ -377,7 +379,7 @@ function createSimilarityCard(documentA, documentB, similarity) {
                 </div>
             </div>
 
-            <p>Jaccard similarity based on unique words</p>
+            <p>LCS similarity based on word order</p>
         </article>
     `;
 }
@@ -461,7 +463,6 @@ async function compareSelectedDocuments() {
             `Comparison complete: ${documentA.name} vs ${documentB.name}.`;
 
         pairSimilarityResult.textContent =
-            `Jaccard Similarity: ${Number(data.jaccardSimilarity).toFixed(2)}%\n` +
             `LCS Similarity: ${Number(data.lcsSimilarity).toFixed(2)}%`;
 
         pairSimilarityResult.style.whiteSpace = "pre-line";
@@ -484,7 +485,7 @@ function analyzeDocuments() {
 
     for (let i = 0; i < documents.length; i++) {
         for (let j = i + 1; j < documents.length; j++) {
-            const similarity = calculateJaccardSimilarity(
+            const similarity = calculateLcsSimilarity(
                 documents[i].content,
                 documents[j].content
             );
@@ -1084,4 +1085,3 @@ if (benchmarkButton && benchmarkStatus && benchmarkResults) {
         }
     });
 }
-
